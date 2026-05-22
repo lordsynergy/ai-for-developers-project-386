@@ -20,29 +20,24 @@ export function formatTimeRange(start: string, end: string) {
 }
 
 export function formatTime(value: string) {
-  return new Intl.DateTimeFormat('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
+  return value.slice(11, 16);
 }
 
 export function formatDate(value: string) {
   return new Intl.DateTimeFormat('ru-RU', {
-    dateStyle: 'full',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
   }).format(new Date(value));
 }
 
 export function formatMonthYear(value: string) {
-  return new Intl.DateTimeFormat('ru-RU', {
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(value));
+  if (!value) return '';
+  const month = new Intl.DateTimeFormat('ru-RU', { month: 'long' }).format(new Date(value));
+  const year = value.slice(0, 4);
+  return `${month} ${year}`;
 }
 
 export function toDateKey(value: string) {
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return value.slice(0, 10);
 }
