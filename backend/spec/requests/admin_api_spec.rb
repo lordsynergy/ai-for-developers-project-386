@@ -144,6 +144,34 @@ RSpec.describe "Admin API", type: :request do
     expect(json).to include("error" => "VALIDATION_ERROR")
   end
 
+  it "rejects event type ids and titles that are too long" do
+    token = AdminSession.create!(token: "valid-token", expires_at: 1.day.from_now).token
+
+    post "/api/admin/event-types",
+      params: {
+        id: "a" * 49,
+        title: "Valid title",
+        description: "Description",
+        durationMinutes: 30
+      }.to_json,
+      headers: auth_headers(token)
+
+    expect(response).to have_http_status(422)
+    expect(json).to include("error" => "VALIDATION_ERROR")
+
+    post "/api/admin/event-types",
+      params: {
+        id: "valid-id",
+        title: "T" * 41,
+        description: "Description",
+        durationMinutes: 30
+      }.to_json,
+      headers: auth_headers(token)
+
+    expect(response).to have_http_status(422)
+    expect(json).to include("error" => "VALIDATION_ERROR")
+  end
+
   it "rejects non-array rules" do
     token = AdminSession.create!(token: "valid-token", expires_at: 1.day.from_now).token
 

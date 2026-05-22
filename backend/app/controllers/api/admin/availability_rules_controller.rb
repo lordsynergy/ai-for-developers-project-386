@@ -7,7 +7,7 @@ module Api
 
       def update
         rules = params.require(:rules)
-        raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "rules must be an array") unless rules.is_a?(Array)
+        raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "Правила рабочего времени должны быть массивом") unless rules.is_a?(Array)
 
         AvailabilityRules::Updater.new(owner: owner, rules: rules).call
 

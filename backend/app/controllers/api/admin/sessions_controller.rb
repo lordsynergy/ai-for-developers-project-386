@@ -5,7 +5,7 @@ module Api
     class SessionsController < ApplicationController
       def create
         unless valid_credentials?
-          raise ApiError.new(status: :unauthorized, code: "UNAUTHORIZED", message: "Invalid email or password")
+          raise ApiError.new(status: :unauthorized, code: "UNAUTHORIZED", message: "Неверный email или пароль")
         end
 
         session = AdminSession.create!(
@@ -19,7 +19,7 @@ module Api
       def destroy
         token = request.authorization.to_s.match(/\ABearer (.+)\z/)&.captures&.first
         session = AdminSession.active.find_by(token: token)
-        raise ApiError.new(status: :unauthorized, code: "UNAUTHORIZED", message: "Invalid or missing admin token") unless session
+        raise ApiError.new(status: :unauthorized, code: "UNAUTHORIZED", message: "Нужен действующий токен администратора") unless session
 
         session.destroy!
         head :no_content

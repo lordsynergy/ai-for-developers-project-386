@@ -3,9 +3,9 @@
 :root {
   color: #24313f;
   background: #eef3f7;
-  --accent: #2f6f68;
-  --accent-strong: #225b56;
-  --accent-soft: #e3f1ee;
+  --accent: #4f5f9f;
+  --accent-strong: #3f4d86;
+  --accent-soft: #edf0fb;
   --ink: #24313f;
   --muted: #65758a;
   --line: #d8e0e8;
@@ -25,7 +25,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    linear-gradient(135deg, rgba(47, 111, 104, 0.08), transparent 32%),
+    linear-gradient(135deg, rgba(79, 95, 159, 0.08), transparent 32%),
     linear-gradient(180deg, #f8fbfd 0%, #e8eef4 100%);
 }
 
@@ -86,8 +86,69 @@ textarea {
   resize: vertical;
 }
 
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.98) translateY(4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 12px 24px rgba(47, 111, 104, 0.26);
+  }
+
+  50% {
+    box-shadow: 0 16px 32px rgba(47, 111, 104, 0.34);
+  }
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes month-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .clamped-text,
 .booking-description,
+.booking-host h2,
+.event-type-summary strong,
 .event-type-summary p,
 .list-item strong,
 .list-item small,
@@ -103,18 +164,21 @@ textarea {
   -webkit-line-clamp: 4;
 }
 
+.booking-host h2,
 .event-type-summary p,
 .list-item small,
 .table-row small {
   -webkit-line-clamp: 2;
 }
 
+.event-type-summary strong,
 .list-item strong,
 .table-row strong {
   -webkit-line-clamp: 1;
 }
 
 .app {
+  position: relative;
   max-width: 1480px;
   margin: 0 auto;
   padding: 22px 28px 54px;
@@ -123,9 +187,9 @@ textarea {
 .topbar {
   display: flex;
   gap: 24px;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .topbar h1,
@@ -216,12 +280,13 @@ button.danger {
 .public-page {
   display: grid;
   gap: 18px;
+  animation: page-in 0.32s ease both;
 }
 
 .public-intro {
   display: flex;
   gap: 22px;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
 }
 
@@ -257,6 +322,7 @@ button.danger {
 
 .panel {
   padding: 24px;
+  animation: page-in 0.28s ease both;
 }
 
 .panel.narrow {
@@ -269,6 +335,7 @@ button.danger {
   grid-template-columns: minmax(300px, 0.88fr) minmax(500px, 1.34fr) minmax(360px, 0.98fr);
   min-height: 650px;
   overflow: hidden;
+  animation: page-in 0.34s ease both;
 }
 
 .booking-host,
@@ -309,6 +376,10 @@ button.danger {
   font-size: 28px;
   font-weight: 760;
   line-height: 1.16;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .booking-host p {
@@ -360,24 +431,30 @@ button.danger {
   background: var(--accent-soft);
   margin-top: 12px;
   padding: 14px;
+  animation: pop-in 0.18s ease both;
 }
 
 .event-type-summary div {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
+  min-width: 0;
 }
 
-.event-type-summary strong,
-.event-type-summary span {
+.event-type-summary strong {
+  display: block;
   line-height: 1.2;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-type-summary span {
   color: #4d666c;
   font-size: 13px;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -481,6 +558,7 @@ button.danger {
   display: grid;
   grid-template-columns: repeat(7, minmax(42px, 1fr));
   gap: 12px;
+  animation: month-in 0.22s ease both;
 }
 
 .weekday-row {
@@ -507,6 +585,12 @@ button.danger {
   padding: 10px 7px;
   background: #edf2f5;
   border-color: #edf2f5;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
 }
 
 .date-cell small {
@@ -562,6 +646,7 @@ button.danger {
   background: var(--accent);
   color: #ffffff;
   box-shadow: 0 12px 24px rgba(47, 111, 104, 0.26);
+  animation: soft-pulse 1.8s ease-in-out infinite;
 }
 
 .date-cell.selected small {
@@ -578,6 +663,7 @@ button.danger {
   background: #f3faf8;
   margin-bottom: 18px;
   padding: 14px 16px;
+  animation: pop-in 0.18s ease both;
 }
 
 .selected-summary span {
@@ -670,11 +756,16 @@ small {
   background: #ffffff;
   padding: 14px;
   text-align: left;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
 }
 
 .list-item:hover {
   border-color: #bdd0dc;
   box-shadow: 0 10px 24px rgba(28, 45, 64, 0.07);
+  transform: translateY(-1px);
 }
 
 .list-item > span:first-child {
@@ -745,6 +836,7 @@ small {
   margin-top: 16px;
   padding: 12px 14px;
   overflow-wrap: anywhere;
+  animation: notice-in 0.18s ease both;
 }
 
 .notice.error {
@@ -792,6 +884,7 @@ small {
   align-items: center;
   border-bottom: 1px solid #e8edf2;
   padding: 12px 0;
+  transition: background 0.16s ease;
 }
 
 .table-row:hover {
@@ -864,5 +957,16 @@ small {
 
   .weekday-row {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 }

@@ -11,7 +11,7 @@ module Api
 
         return if @admin_session
 
-        raise ApiError.new(status: :unauthorized, code: "UNAUTHORIZED", message: "Invalid or missing admin token")
+        raise ApiError.new(status: :unauthorized, code: "UNAUTHORIZED", message: "Нужен действующий токен администратора")
       end
     end
   end

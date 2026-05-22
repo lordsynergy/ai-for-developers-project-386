@@ -35,6 +35,9 @@ const emptyEventTypeForm: EventTypeCreateRequest = {
 };
 
 const eventTypeDescriptionMaxLength = 240;
+const eventTypeIdMaxLength = 48;
+const eventTypeTitleMaxLength = 40;
+const eventTypeDurationMaxMinutes = 480;
 const guestNameMaxLength = 60;
 const guestEmailMaxLength = 120;
 
@@ -53,9 +56,32 @@ type CalendarDay = {
   slotsCount: number;
 };
 
+const apiMessageTranslations: Record<string, string> = {
+  'Availability rules must not overlap': 'Правила рабочего времени не должны пересекаться',
+  'rules must be an array': 'Правила рабочего времени должны быть массивом',
+  'rules must be an array of objects': 'Правила должны быть списком объектов',
+  'rules must include dayOfWeek, startTime and endTime': 'Правило должно содержать день, начало и конец',
+  'Event type already exists': 'Тип встречи с таким ID уже существует',
+  'Invalid or missing admin token': 'Нужен действующий токен администратора',
+  'Invalid email or password': 'Неверный email или пароль',
+  'Selected startAt is not an available slot': 'Выбранное время недоступно для записи',
+  'Selected slot is already booked': 'Выбранное время уже занято',
+  'guestName and guestEmail are required': 'Укажите имя и email гостя',
+  'guestName must be 60 characters or less': 'Имя должно быть не длиннее 60 символов',
+  'guestEmail must be 120 characters or less': 'Email должен быть не длиннее 120 символов',
+  'guestEmail must be a valid email': 'Укажите корректный email',
+  'Event type not found': 'Тип встречи не найден',
+  'startAt must be a valid ISO 8601 date-time': 'Передайте дату и время в корректном ISO 8601 формате',
+  'Resource not found': 'Ресурс не найден',
+};
+
+function localizeApiMessage(message: string) {
+  return apiMessageTranslations[message] ?? message;
+}
+
 function toMessage(error: unknown) {
   if (error instanceof ApiError) {
-    return error.message;
+    return localizeApiMessage(error.message);
   }
 
   if (error instanceof Error) {
@@ -118,7 +144,6 @@ function App() {
     <div className="app">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Calendar Booking</p>
           <h1>Бронирование встреч</h1>
         </div>
         <nav className="nav" aria-label="Основная навигация">
@@ -149,7 +174,7 @@ function App() {
             </>
           ) : (
             <button className={route === 'admin-login' ? 'active' : ''} onClick={() => navigate('admin-login')}>
-              Вход для админа
+              Вход
             </button>
           )}
         </nav>
@@ -356,7 +381,6 @@ function PublicBookingPage() {
     <section className="public-page">
       <div className="public-intro">
         <div>
-          <p className="eyebrow">Онлайн-запись</p>
           <h2>Выберите дату и время встречи</h2>
         </div>
         <div className="step-strip" aria-label="Шаги бронирования">
@@ -373,10 +397,10 @@ function PublicBookingPage() {
         <p className="muted">Календарь владельца</p>
         <h2>{selectedEventType ? selectedEventTitle : 'Выберите встречу'}</h2>
         <p className="booking-description" title={selectedEventType ? selectedEventDescription : undefined}>
-          {selectedEventType ? selectedEventDescription : 'Сначала выберите формат встречи слева.'}
+          {selectedEventType ? selectedEventDescription : 'Сначала выберите формат встречи.'}
         </p>
         <div className="meta-list">
-          <span>{selectedEventType ? minutesLabel(selectedEventDuration) : 'Длительность из API'}</span>
+          <span>{selectedEventType ? minutesLabel(selectedEventDuration) : 'Длительность встречи'}</span>
           <span>{availableDateKeys.length} доступных дат</span>
           <span>Бронирование без регистрации</span>
         </div>
@@ -434,7 +458,7 @@ function PublicBookingPage() {
             <span key={label}>{label}</span>
           ))}
         </div>
-        <div className="date-grid">
+        <div className="date-grid" key={calendarTitle}>
           {calendarDays.map((day) => {
             const hasSlots = day.slotsCount > 0;
             return (
@@ -557,7 +581,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   return (
     <section className="panel narrow">
-      <h2>Вход в админку</h2>
+      <h2>Вход</h2>
       <form className="form" onSubmit={handleSubmit}>
         <label>
           Email
@@ -609,19 +633,27 @@ function AdminEventTypesPage() {
 
   function validateEventTypeForm() {
     if (!editingId && !/^[a-z0-9-]+$/.test(form.id)) {
-      return 'ID должен быть slug: строчные латинские буквы, цифры и дефисы.';
+      return 'ID должен содержать только строчные латинские буквы, цифры и дефисы. Например: intro-call.';
+    }
+
+    if (!editingId && form.id.length > eventTypeIdMaxLength) {
+      return `ID должен быть не длиннее ${eventTypeIdMaxLength} символов.`;
     }
 
     if (!form.title.trim()) {
       return 'Укажите название типа встречи.';
     }
 
+    if (form.title.trim().length > eventTypeTitleMaxLength) {
+      return `Название должно быть не длиннее ${eventTypeTitleMaxLength} символов.`;
+    }
+
     if (form.description.length > eventTypeDescriptionMaxLength) {
       return `Описание должно быть не длиннее ${eventTypeDescriptionMaxLength} символов.`;
     }
 
-    if (!Number.isInteger(Number(form.durationMinutes)) || Number(form.durationMinutes) < 1) {
-      return 'Длительность должна быть целым числом больше 0.';
+    if (!Number.isInteger(Number(form.durationMinutes)) || Number(form.durationMinutes) < 1 || Number(form.durationMinutes) > eventTypeDurationMaxMinutes) {
+      return `Длительность должна быть целым числом от 1 до ${eventTypeDurationMaxMinutes} минут.`;
     }
 
     return null;
@@ -715,13 +747,24 @@ function AdminEventTypesPage() {
             <input
               value={form.id}
               disabled={Boolean(editingId)}
+              maxLength={eventTypeIdMaxLength}
               onChange={(event) => setForm({ ...form, id: event.target.value })}
               placeholder="intro-call"
             />
+            <span className="field-hint">
+              {form.id.length}/{eventTypeIdMaxLength} символов
+            </span>
           </label>
           <label>
             Название
-            <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+            <input
+              value={form.title}
+              maxLength={eventTypeTitleMaxLength}
+              onChange={(event) => setForm({ ...form, title: event.target.value })}
+            />
+            <span className="field-hint">
+              {form.title.length}/{eventTypeTitleMaxLength} символов
+            </span>
           </label>
           <label>
             Описание
@@ -740,6 +783,7 @@ function AdminEventTypesPage() {
             <input
               type="number"
               min="1"
+              max={eventTypeDurationMaxMinutes}
               value={form.durationMinutes}
               onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })}
             />

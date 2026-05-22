@@ -14,11 +14,11 @@ class ApplicationController < ActionController::API
   end
 
   def render_not_found
-    render_error(:not_found, "NOT_FOUND", "Resource not found")
+    render_error(:not_found, "NOT_FOUND", "Ресурс не найден")
   end
 
   def render_bad_request(error)
-    render_error(:bad_request, "BAD_REQUEST", error.message)
+    render_error(:bad_request, "BAD_REQUEST", "В запросе отсутствует обязательный параметр: #{error.param}")
   end
 
   def render_error(status, code, message)

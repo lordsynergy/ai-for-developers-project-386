@@ -7,7 +7,7 @@ module Api
 
       def create
         if owner.event_types.exists?(slug: params.require(:id))
-          render_error(:conflict, "CONFLICT", "Event type already exists")
+          render_error(:conflict, "CONFLICT", "Тип встречи с таким ID уже существует")
           return
         end
 
@@ -55,7 +55,7 @@ module Api
       end
 
       def render_model_error(record)
-        render_error(422, "VALIDATION_ERROR", record.errors.full_messages.to_sentence)
+        render_error(422, "VALIDATION_ERROR", "Проверьте поля типа встречи")
       end
     end
   end

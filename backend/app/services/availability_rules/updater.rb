@@ -14,7 +14,7 @@ module AvailabilityRules
         normalized_rules.map { |attributes| owner.availability_rules.create!(attributes) }
       end
     rescue ActiveRecord::RecordInvalid => e
-      raise ApiError.new(status: 422, code: "VALIDATION_ERROR", message: e.record.errors.full_messages.to_sentence)
+      raise ApiError.new(status: 422, code: "VALIDATION_ERROR", message: "Проверьте правила рабочего времени")
     end
 
     private
@@ -30,9 +30,9 @@ module AvailabilityRules
         }
       end
     rescue KeyError
-      raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "rules must include dayOfWeek, startTime and endTime")
+      raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "Правило должно содержать день, начало и конец")
     rescue NoMethodError
-      raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "rules must be an array of objects")
+      raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "Правила должны быть списком объектов")
     end
 
     def validate_no_overlaps!(normalized_rules)
@@ -42,11 +42,11 @@ module AvailabilityRules
         sorted.each_cons(2) do |left, right|
           next if AvailabilityRule.minutes_for(left[:end_time]) <= AvailabilityRule.minutes_for(right[:start_time])
 
-          raise ApiError.new(status: 422, code: "VALIDATION_ERROR", message: "Availability rules must not overlap")
+          raise ApiError.new(status: 422, code: "VALIDATION_ERROR", message: "Правила рабочего времени не должны пересекаться")
         end
       end
     rescue NoMethodError
-      raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "rules must be an array")
+      raise ApiError.new(status: :bad_request, code: "BAD_REQUEST", message: "Правила рабочего времени должны быть массивом")
     end
   end
 end
