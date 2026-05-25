@@ -34,6 +34,13 @@ const emptyEventTypeForm: EventTypeCreateRequest = {
   durationMinutes: 30,
 };
 
+const eventTypeDescriptionMaxLength = 240;
+const eventTypeIdMaxLength = 48;
+const eventTypeTitleMaxLength = 40;
+const eventTypeDurationMaxMinutes = 480;
+const guestNameMaxLength = 60;
+const guestEmailMaxLength = 120;
+
 const defaultRules: AvailabilityRuleInput[] = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
   dayOfWeek,
   startTime: '10:00',
@@ -49,9 +56,32 @@ type CalendarDay = {
   slotsCount: number;
 };
 
+const apiMessageTranslations: Record<string, string> = {
+  'Availability rules must not overlap': 'Правила рабочего времени не должны пересекаться',
+  'rules must be an array': 'Правила рабочего времени должны быть массивом',
+  'rules must be an array of objects': 'Правила должны быть списком объектов',
+  'rules must include dayOfWeek, startTime and endTime': 'Правило должно содержать день, начало и конец',
+  'Event type already exists': 'Тип встречи с таким ID уже существует',
+  'Invalid or missing admin token': 'Нужен действующий токен администратора',
+  'Invalid email or password': 'Неверный email или пароль',
+  'Selected startAt is not an available slot': 'Выбранное время недоступно для записи',
+  'Selected slot is already booked': 'Выбранное время уже занято',
+  'guestName and guestEmail are required': 'Укажите имя и email гостя',
+  'guestName must be 60 characters or less': 'Имя должно быть не длиннее 60 символов',
+  'guestEmail must be 120 characters or less': 'Email должен быть не длиннее 120 символов',
+  'guestEmail must be a valid email': 'Укажите корректный email',
+  'Event type not found': 'Тип встречи не найден',
+  'startAt must be a valid ISO 8601 date-time': 'Передайте дату и время в корректном ISO 8601 формате',
+  'Resource not found': 'Ресурс не найден',
+};
+
+function localizeApiMessage(message: string) {
+  return apiMessageTranslations[message] ?? message;
+}
+
 function toMessage(error: unknown) {
   if (error instanceof ApiError) {
-    return error.message;
+    return localizeApiMessage(error.message);
   }
 
   if (error instanceof Error) {
@@ -114,7 +144,6 @@ function App() {
     <div className="app">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Calendar Booking</p>
           <h1>Бронирование встреч</h1>
         </div>
         <nav className="nav" aria-label="Основная навигация">
@@ -145,7 +174,7 @@ function App() {
             </>
           ) : (
             <button className={route === 'admin-login' ? 'active' : ''} onClick={() => navigate('admin-login')}>
-              Вход для админа
+              Вход
             </button>
           )}
         </nav>
@@ -191,6 +220,7 @@ function PublicBookingPage() {
   const [slots, setSlots] = useState<LoadState<Slot[]>>({ data: [], loading: false, error: null });
   const [selectedDateKey, setSelectedDateKey] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [calendarAnchor, setCalendarAnchor] = useState('');
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -224,18 +254,40 @@ function PublicBookingPage() {
       return counts;
     }, new Map<string, number>());
   }, [slots.data]);
+  useEffect(() => {
+    if (availableDateKeys.length > 0) {
+      setCalendarAnchor((current) => current || availableDateKeys[0]);
+    }
+  }, [availableDateKeys]);
+
+  function goToPrevMonth() {
+    const anchor = calendarAnchor || availableDateKeys[0] || utcDateToDateKey(new Date());
+    const date = dateKeyToUtcDate(anchor);
+    date.setUTCMonth(date.getUTCMonth() - 1);
+    setCalendarAnchor(utcDateToDateKey(date));
+  }
+
+  function goToNextMonth() {
+    const anchor = calendarAnchor || availableDateKeys[0] || utcDateToDateKey(new Date());
+    const date = dateKeyToUtcDate(anchor);
+    date.setUTCMonth(date.getUTCMonth() + 1);
+    setCalendarAnchor(utcDateToDateKey(date));
+  }
+
+  function handleDateSelect(dateKey: string) {
+    setSelectedDateKey(dateKey);
+    setSelectedSlot(null);
+    setCalendarAnchor(dateKey);
+  }
+
   const calendarDays = useMemo(() => {
-    return buildCalendarDays(selectedDateKey || availableDateKeys[0] || utcDateToDateKey(new Date()), slotCountsByDate);
-  }, [availableDateKeys, selectedDateKey, slotCountsByDate]);
+    return buildCalendarDays(calendarAnchor || availableDateKeys[0] || utcDateToDateKey(new Date()), slotCountsByDate);
+  }, [calendarAnchor, availableDateKeys, slotCountsByDate]);
   const slotsForSelectedDate = slots.data.filter((slot) => toDateKey(slot.startAt) === selectedDateKey);
   const selectedDateLabel = selectedDateKey ? formatDate(`${selectedDateKey}T12:00:00`) : '';
   const calendarTitle = formatMonthYear(`${calendarDays.find((day) => day.inMonth)?.dateKey ?? utcDateToDateKey(new Date())}T12:00:00`);
   const selectedEventTitle = displayEventTypeTitle(selectedEventType, safeSelectedEventTypeIndex);
   const selectedEventDescription = displayEventTypeDescription(selectedEventType, safeSelectedEventTypeIndex);
-
-  useEffect(() => {
-    setSelectedDateKey((current) => (current && availableDateKeys.includes(current) ? current : availableDateKeys[0] || ''));
-  }, [availableDateKeys]);
 
   useEffect(() => {
     if (!selectedDateKey) {
@@ -248,16 +300,15 @@ function PublicBookingPage() {
         return current;
       }
 
-      return slots.data.find((slot) => toDateKey(slot.startAt) === selectedDateKey) ?? null;
+      return null;
     });
-  }, [selectedDateKey, slots.data]);
+  }, [selectedDateKey]);
 
   async function loadEventTypes() {
     setEventTypes((state) => ({ ...state, loading: true, error: null }));
     try {
       const data = await api.public.listEventTypes();
       setEventTypes({ data, loading: false, error: null });
-      setSelectedEventTypeId((current) => current || data[0]?.id || '');
     } catch (error) {
       setEventTypes({ data: [], loading: false, error: toMessage(error) });
     }
@@ -286,6 +337,16 @@ function PublicBookingPage() {
 
     if (!guestName.trim()) {
       setNotice({ type: 'error', message: 'Укажите имя гостя.' });
+      return;
+    }
+
+    if (guestName.trim().length > guestNameMaxLength) {
+      setNotice({ type: 'error', message: `Имя должно быть не длиннее ${guestNameMaxLength} символов.` });
+      return;
+    }
+
+    if (guestEmail.trim().length > guestEmailMaxLength) {
+      setNotice({ type: 'error', message: `Email должен быть не длиннее ${guestEmailMaxLength} символов.` });
       return;
     }
 
@@ -320,7 +381,6 @@ function PublicBookingPage() {
     <section className="public-page">
       <div className="public-intro">
         <div>
-          <p className="eyebrow">Онлайн-запись</p>
           <h2>Выберите дату и время встречи</h2>
         </div>
         <div className="step-strip" aria-label="Шаги бронирования">
@@ -336,44 +396,60 @@ function PublicBookingPage() {
         <div className="avatar">CB</div>
         <p className="muted">Календарь владельца</p>
         <h2>{selectedEventType ? selectedEventTitle : 'Выберите встречу'}</h2>
-        <p>{selectedEventType ? selectedEventDescription : 'Сначала выберите формат встречи слева.'}</p>
+        <p className="booking-description" title={selectedEventType ? selectedEventDescription : undefined}>
+          {selectedEventType ? selectedEventDescription : 'Сначала выберите формат встречи.'}
+        </p>
         <div className="meta-list">
-          <span>{selectedEventType ? minutesLabel(selectedEventDuration) : 'Длительность из API'}</span>
+          <span>{selectedEventType ? minutesLabel(selectedEventDuration) : 'Длительность встречи'}</span>
           <span>{availableDateKeys.length} доступных дат</span>
           <span>Бронирование без регистрации</span>
         </div>
 
         <div className="event-type-picker">
-          <h3>1. Выберите тип встречи</h3>
+          <h3>Тип встречи</h3>
           <AsyncState loading={eventTypes.loading} error={eventTypes.error} onRetry={loadEventTypes} />
-          {!eventTypes.loading && !eventTypes.error && eventTypes.data.length === 1 && (
-            <p className="helper-text compact">Сейчас API вернул один доступный тип. Когда типов будет больше, они появятся в этом списке.</p>
-          )}
-          <div className="compact-list">
-            {eventTypes.data.map((eventType, index) => (
-              <button
-                className={`event-choice ${selectedEventTypeId === eventType.id ? 'selected' : ''}`}
-                key={eventType.id}
-                onClick={() => setSelectedEventTypeId(eventType.id)}
+          {!eventTypes.loading && !eventTypes.error && eventTypes.data.length > 0 && (
+            <>
+              <select
+                aria-label="Выберите тип встречи"
+                className="event-type-select"
+                value={selectedEventTypeId}
+                onChange={(event) => setSelectedEventTypeId(event.target.value)}
               >
-                <span>
-                  <strong>{displayEventTypeTitle(eventType, index)}</strong>
-                  <small>{minutesLabel(displayDurationMinutes(eventType, index))}</small>
-                  <em>{displayEventTypeDescription(eventType, index)}</em>
-                </span>
-              </button>
-            ))}
-          </div>
+                <option value="" disabled>
+                  Выберите формат
+                </option>
+                {eventTypes.data.map((eventType, index) => (
+                  <option key={eventType.id} value={eventType.id}>
+                    {displayEventTypeTitle(eventType, index)} · {minutesLabel(displayDurationMinutes(eventType, index))}
+                  </option>
+                ))}
+              </select>
+              {selectedEventType && (
+                <div className="event-type-summary">
+                  <div>
+                    <strong>{selectedEventTitle}</strong>
+                    <span>{minutesLabel(selectedEventDuration)}</span>
+                  </div>
+                  <p title={selectedEventDescription}>{selectedEventDescription}</p>
+                </div>
+              )}
+            </>
+          )}
+          {!eventTypes.loading && !eventTypes.error && eventTypes.data.length === 0 && (
+            <p className="muted">API не вернул доступных типов встреч.</p>
+          )}
         </div>
       </aside>
 
       <section className="booking-calendar">
-        <div className="calendar-heading">
-          <div>
-            <p className="eyebrow">Дата</p>
+        <div className="calendar-heading calendar-heading-centered">
+          <p className="eyebrow">Дата</p>
+          <div className="calendar-title-row" aria-label="Навигация по месяцам">
+            <button className="nav-arrow" onClick={goToPrevMonth} aria-label="Предыдущий месяц">‹</button>
             <h2>{calendarTitle}</h2>
+            <button className="nav-arrow" onClick={goToNextMonth} aria-label="Следующий месяц">›</button>
           </div>
-          <span className="pill">24h</span>
         </div>
         <p className="helper-text">Подсвеченные дни доступны для записи. Точка под датой показывает, что на этот день есть свободное время.</p>
         <AsyncState loading={slots.loading} error={slots.error} onRetry={() => selectedEventTypeId && loadSlots(selectedEventTypeId)} />
@@ -382,19 +458,16 @@ function PublicBookingPage() {
             <span key={label}>{label}</span>
           ))}
         </div>
-        <div className="date-grid">
+        <div className="date-grid" key={calendarTitle}>
           {calendarDays.map((day) => {
             const hasSlots = day.slotsCount > 0;
             return (
-              <button
-                className={`date-cell ${selectedDateKey === day.dateKey ? 'selected' : ''} ${day.inMonth ? '' : 'outside'} ${hasSlots ? 'has-slots' : ''}`}
-                disabled={!hasSlots}
-                key={day.dateKey}
-                onClick={() => {
-                  setSelectedDateKey(day.dateKey);
-                  setSelectedSlot(null);
-                }}
-              >
+                <button
+                  className={`date-cell ${selectedDateKey === day.dateKey ? 'selected' : ''} ${day.inMonth ? '' : 'outside'} ${hasSlots ? 'has-slots' : ''}`}
+                  disabled={!hasSlots}
+                  key={day.dateKey}
+                  onClick={() => handleDateSelect(day.dateKey)}
+                >
                 <strong>{day.dayNumber}</strong>
                 {hasSlots && <small>{day.slotsCount} сл.</small>}
               </button>
@@ -407,11 +480,9 @@ function PublicBookingPage() {
       </section>
 
       <aside className="booking-slots">
-        <div className="calendar-heading">
-          <div>
-            <p className="eyebrow">Время</p>
-            <h2>{selectedDateLabel || 'Выберите дату'}</h2>
-          </div>
+        <div className="calendar-heading slots-heading">
+          <p className="eyebrow">Время</p>
+          <h2>{selectedDateLabel || 'Выберите дату'}</h2>
         </div>
         {selectedSlot && (
           <div className="selected-summary">
@@ -419,18 +490,25 @@ function PublicBookingPage() {
             <strong>{formatTime(selectedSlot.startAt)} - {formatTime(selectedSlot.endAt)}</strong>
           </div>
         )}
-        <div className="slot-stack">
-          {slotsForSelectedDate.map((slot) => (
-            <button
-              className={`slot ${selectedSlot?.startAt === slot.startAt ? 'selected' : ''}`}
-              key={`${slot.eventTypeId}-${slot.startAt}`}
-              onClick={() => setSelectedSlot(slot)}
-            >
-              <strong>{formatTime(slot.startAt)}</strong>
-              <span>{formatTime(slot.endAt)}</span>
-            </button>
-          ))}
-        </div>
+        <label className="time-select-field">
+          Доступное время
+          <select
+            value={selectedSlot?.startAt ?? ''}
+            disabled={!selectedDateKey || slotsForSelectedDate.length === 0}
+            onChange={(event) => {
+              setSelectedSlot(slotsForSelectedDate.find((slot) => slot.startAt === event.target.value) ?? null);
+            }}
+          >
+            <option value="">
+              {selectedDateKey ? 'Выберите время' : 'Сначала выберите дату'}
+            </option>
+            {slotsForSelectedDate.map((slot) => (
+              <option key={`${slot.eventTypeId}-${slot.startAt}`} value={slot.startAt}>
+                {formatTime(slot.startAt)} - {formatTime(slot.endAt)}
+              </option>
+            ))}
+          </select>
+        </label>
         {!slots.loading && !slots.error && !selectedDateKey && (
           <p className="muted">Выберите подсвеченную дату в календаре, чтобы увидеть доступное время.</p>
         )}
@@ -442,11 +520,22 @@ function PublicBookingPage() {
           <h3>Данные гостя</h3>
           <label>
             Имя
-            <input value={guestName} onChange={(event) => setGuestName(event.target.value)} placeholder="Анна Иванова" />
+            <input
+              value={guestName}
+              maxLength={guestNameMaxLength}
+              onChange={(event) => setGuestName(event.target.value)}
+              placeholder="Анна Иванова"
+            />
           </label>
           <label>
             Email
-            <input value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} placeholder="anna@example.com" />
+            <input
+              value={guestEmail}
+              maxLength={guestEmailMaxLength}
+              onChange={(event) => setGuestEmail(event.target.value)}
+              placeholder="anna@example.com"
+              type="email"
+            />
           </label>
           <button className="primary" disabled={submitting || !selectedSlot}>
             {submitting ? 'Бронируем...' : selectedSlot ? 'Забронировать выбранное время' : 'Сначала выберите время'}
@@ -492,7 +581,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   return (
     <section className="panel narrow">
-      <h2>Вход в админку</h2>
+      <h2>Вход</h2>
       <form className="form" onSubmit={handleSubmit}>
         <label>
           Email
@@ -544,15 +633,27 @@ function AdminEventTypesPage() {
 
   function validateEventTypeForm() {
     if (!editingId && !/^[a-z0-9-]+$/.test(form.id)) {
-      return 'ID должен быть slug: строчные латинские буквы, цифры и дефисы.';
+      return 'ID должен содержать только строчные латинские буквы, цифры и дефисы. Например: intro-call.';
+    }
+
+    if (!editingId && form.id.length > eventTypeIdMaxLength) {
+      return `ID должен быть не длиннее ${eventTypeIdMaxLength} символов.`;
     }
 
     if (!form.title.trim()) {
       return 'Укажите название типа встречи.';
     }
 
-    if (!Number.isInteger(Number(form.durationMinutes)) || Number(form.durationMinutes) < 1) {
-      return 'Длительность должна быть целым числом больше 0.';
+    if (form.title.trim().length > eventTypeTitleMaxLength) {
+      return `Название должно быть не длиннее ${eventTypeTitleMaxLength} символов.`;
+    }
+
+    if (form.description.length > eventTypeDescriptionMaxLength) {
+      return `Описание должно быть не длиннее ${eventTypeDescriptionMaxLength} символов.`;
+    }
+
+    if (!Number.isInteger(Number(form.durationMinutes)) || Number(form.durationMinutes) < 1 || Number(form.durationMinutes) > eventTypeDurationMaxMinutes) {
+      return `Длительность должна быть целым числом от 1 до ${eventTypeDurationMaxMinutes} минут.`;
     }
 
     return null;
@@ -616,23 +717,25 @@ function AdminEventTypesPage() {
         <h2>Admin: типы встреч</h2>
         <AsyncState loading={state.loading} error={state.error} onRetry={loadEventTypes} />
         <div className="list">
-          {state.data.map((eventType) => (
-            <div className="list-item" key={eventType.id}>
-              <span>
-                <strong>{eventType.title}</strong>
-                <small>
-                  {eventType.id} · {eventType.description || 'Без описания'}
-                </small>
-              </span>
-              <span className="actions">
-                <span className="pill">{eventType.durationMinutes} мин</span>
-                <button onClick={() => edit(eventType)}>Править</button>
-                <button className="danger" disabled={submitting} onClick={() => handleDelete(eventType)}>
-                  Удалить
-                </button>
-              </span>
-            </div>
-          ))}
+          {state.data.map((eventType) => {
+            const details = `${eventType.id} · ${eventType.description || 'Без описания'}`;
+
+            return (
+              <div className="list-item" key={eventType.id}>
+                <span>
+                  <strong title={eventType.title}>{eventType.title}</strong>
+                  <small title={details}>{details}</small>
+                </span>
+                <span className="actions">
+                  <span className="pill">{eventType.durationMinutes} мин</span>
+                  <button onClick={() => edit(eventType)}>Править</button>
+                  <button className="danger" disabled={submitting} onClick={() => handleDelete(eventType)}>
+                    Удалить
+                  </button>
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -644,23 +747,43 @@ function AdminEventTypesPage() {
             <input
               value={form.id}
               disabled={Boolean(editingId)}
+              maxLength={eventTypeIdMaxLength}
               onChange={(event) => setForm({ ...form, id: event.target.value })}
               placeholder="intro-call"
             />
+            <span className="field-hint">
+              {form.id.length}/{eventTypeIdMaxLength} символов
+            </span>
           </label>
           <label>
             Название
-            <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+            <input
+              value={form.title}
+              maxLength={eventTypeTitleMaxLength}
+              onChange={(event) => setForm({ ...form, title: event.target.value })}
+            />
+            <span className="field-hint">
+              {form.title.length}/{eventTypeTitleMaxLength} символов
+            </span>
           </label>
           <label>
             Описание
-            <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} />
+            <textarea
+              value={form.description}
+              maxLength={eventTypeDescriptionMaxLength}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+              rows={4}
+            />
+            <span className="field-hint">
+              {form.description.length}/{eventTypeDescriptionMaxLength} символов
+            </span>
           </label>
           <label>
             Длительность, минут
             <input
               type="number"
               min="1"
+              max={eventTypeDurationMaxMinutes}
               value={form.durationMinutes}
               onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })}
             />
