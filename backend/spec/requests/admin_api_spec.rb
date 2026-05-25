@@ -86,19 +86,21 @@ RSpec.describe "Admin API", type: :request do
   end
 
   it "returns upcoming bookings sorted by startsAt" do
-    token = AdminSession.create!(token: "valid-token", expires_at: 1.day.from_now).token
-    event_type = owner.event_types.create!(slug: "test", title: "Test", description: "Test", duration_minutes: 30)
-    later = Time.utc(2026, 5, 26, 8, 0, 0)
-    earlier = Time.utc(2026, 5, 25, 8, 0, 0)
-    Booking.create!(event_type: event_type, guest_name: "B", guest_email: "b@test.com", starts_at: later, ends_at: later + 30.minutes)
-    Booking.create!(event_type: event_type, guest_name: "A", guest_email: "a@test.com", starts_at: earlier, ends_at: earlier + 30.minutes)
+    travel_to(Time.utc(2026, 5, 25, 7, 0, 0)) do
+      token = AdminSession.create!(token: "valid-token", expires_at: 1.day.from_now).token
+      event_type = owner.event_types.create!(slug: "test", title: "Test", description: "Test", duration_minutes: 30)
+      later = Time.utc(2026, 5, 26, 8, 0, 0)
+      earlier = Time.utc(2026, 5, 25, 8, 0, 0)
+      Booking.create!(event_type: event_type, guest_name: "B", guest_email: "b@test.com", starts_at: later, ends_at: later + 30.minutes)
+      Booking.create!(event_type: event_type, guest_name: "A", guest_email: "a@test.com", starts_at: earlier, ends_at: earlier + 30.minutes)
 
-    get "/api/admin/bookings/upcoming", headers: auth_headers(token)
+      get "/api/admin/bookings/upcoming", headers: auth_headers(token)
 
-    expect(response).to have_http_status(:ok)
-    expect(json.size).to eq(2)
-    expect(json[0]["guestName"]).to eq("A")
-    expect(json[1]["guestName"]).to eq("B")
+      expect(response).to have_http_status(:ok)
+      expect(json.size).to eq(2)
+      expect(json[0]["guestName"]).to eq("A")
+      expect(json[1]["guestName"]).to eq("B")
+    end
   end
 
   it "invalidates the token on logout" do

@@ -166,6 +166,20 @@ RSpec.describe "Public API", type: :request do
     expect(json).to include("error" => "VALIDATION_ERROR")
   end
 
+  it "rejects booking with fractional seconds in startAt" do
+    post "/api/public/bookings",
+      params: {
+        eventTypeId: "intro-call",
+        startAt: local_time(Date.new(2026, 5, 25), "10:00").change(usec: 500_000).iso8601(3),
+        guestName: "Anna",
+        guestEmail: "anna@example.com"
+      }.to_json,
+      headers: json_headers
+
+    expect(response).to have_http_status(422)
+    expect(json).to include("error" => "VALIDATION_ERROR")
+  end
+
   it "rejects booking outside the 14 day window" do
     post "/api/public/bookings",
       params: {
