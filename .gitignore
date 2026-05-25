@@ -10,6 +10,7 @@ frontend/vite.config.js
 .codex
 frontend/.agents
 frontend/.codex
+docs/
 
 # Собранный frontend внутри backend/public (генерируется Dockerfile)
 backend/public/index.html
