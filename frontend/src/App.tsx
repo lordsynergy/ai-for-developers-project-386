@@ -463,6 +463,11 @@ function PublicBookingPage() {
             const hasSlots = day.slotsCount > 0;
             return (
                 <button
+                  aria-label={
+                    hasSlots
+                      ? `Выбрать дату ${formatDate(`${day.dateKey}T12:00:00`)}, свободных слотов: ${day.slotsCount}`
+                      : `${formatDate(`${day.dateKey}T12:00:00`)}, нет свободных слотов`
+                  }
                   className={`date-cell ${selectedDateKey === day.dateKey ? 'selected' : ''} ${day.inMonth ? '' : 'outside'} ${hasSlots ? 'has-slots' : ''}`}
                   disabled={!hasSlots}
                   key={day.dateKey}

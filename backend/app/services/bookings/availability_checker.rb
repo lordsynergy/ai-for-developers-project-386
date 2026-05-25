@@ -50,7 +50,10 @@ module Bookings
       start_minutes = (local_start.hour * 60) + local_start.min
       end_minutes = (local_end.hour * 60) + local_end.min
 
-      return false unless local_start.sec.zero? && local_end.sec.zero?
+      return false unless local_start.sec.zero? &&
+        local_end.sec.zero? &&
+        local_start.usec.zero? &&
+        local_end.usec.zero?
 
       start_minutes >= rule.start_minutes &&
         end_minutes <= rule.end_minutes &&
