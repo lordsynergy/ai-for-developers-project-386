@@ -12,8 +12,11 @@ Rails.application.configure do
   # Full error reports are disabled.
   config.consider_all_requests_local = false
 
-  # Cache assets for far-future expiry since they are all digest stamped.
-  config.public_file_server.headers = { "cache-control" => "public, max-age=#{1.year.to_i}" }
+  config.public_file_server.enabled = true
+
+  # The Vite build puts index.html into public, so keep static responses fresh
+  # between deploys instead of letting browsers pin the SPA entrypoint.
+  config.public_file_server.headers = { "cache-control" => "no-cache" }
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
@@ -22,7 +25,7 @@ Rails.application.configure do
   config.assume_ssl = true
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  config.force_ssl = ENV.fetch("FORCE_SSL", "false") == "true"
 
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
@@ -39,6 +42,8 @@ Rails.application.configure do
 
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
+
+  config.secret_key_base = ENV["SECRET_KEY_BASE"] if ENV["SECRET_KEY_BASE"].present?
 
   config.cache_store = :memory_store
 

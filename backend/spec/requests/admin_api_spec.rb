@@ -15,6 +15,12 @@ RSpec.describe "Admin API", type: :request do
     json_headers.merge("Authorization" => "Bearer #{token}")
   end
 
+  def local_time(date, time)
+    zone = ActiveSupport::TimeZone[owner.timezone]
+    hours, minutes = time.split(":").map(&:to_i)
+    zone.local(date.year, date.month, date.day, hours, minutes)
+  end
+
   it "logs in and returns an admin token" do
     post "/api/admin/sessions",
       params: { email: "admin@example.com", password: "password" }.to_json,
@@ -100,6 +106,29 @@ RSpec.describe "Admin API", type: :request do
       expect(json.size).to eq(2)
       expect(json[0]["guestName"]).to eq("A")
       expect(json[1]["guestName"]).to eq("B")
+    end
+  end
+
+  it "serializes booking times in the calendar owner's timezone" do
+    travel_to(Time.utc(2026, 5, 25, 7, 0, 0)) do
+      token = AdminSession.create!(token: "valid-token", expires_at: 1.day.from_now).token
+      event_type = owner.event_types.create!(slug: "consultation", title: "Consultation", description: "Longer call", duration_minutes: 60)
+      starts_at = local_time(Date.new(2026, 5, 27), "12:00")
+      Booking.create!(
+        event_type: event_type,
+        guest_name: "Anna",
+        guest_email: "anna@example.com",
+        starts_at: starts_at,
+        ends_at: starts_at + 60.minutes
+      )
+
+      get "/api/admin/bookings/upcoming", headers: auth_headers(token)
+
+      expect(response).to have_http_status(:ok)
+      expect(json.first).to include(
+        "startsAt" => starts_at.iso8601,
+        "endsAt" => (starts_at + 60.minutes).iso8601
+      )
     end
   end
 

@@ -93,6 +93,31 @@ RSpec.describe "Public API", type: :request do
     expect(json.map { |slot| slot["startAt"] }).not_to include(start_at)
   end
 
+  it "does not return slots that partially overlap existing bookings" do
+    owner.availability_rules.delete_all
+    owner.availability_rules.create!(day_of_week: 3, start_time: "10:00", end_time: "18:00")
+    demo = owner.event_types.create!(
+      slug: "demo-call",
+      title: "Demo call",
+      description: "Demo",
+      duration_minutes: 45
+    )
+    starts_at = local_time(Date.new(2026, 5, 27), "13:15")
+    Booking.create!(
+      event_type: demo,
+      guest_name: "Existing",
+      guest_email: "existing@example.com",
+      starts_at: starts_at,
+      ends_at: starts_at + 45.minutes
+    )
+
+    get "/api/public/event-types/consultation/slots"
+
+    expect(response).to have_http_status(:ok)
+    expect(json.map { |slot| slot["startAt"] }).not_to include(local_time(Date.new(2026, 5, 27), "13:00").iso8601)
+    expect(json.map { |slot| slot["startAt"] }).to include(local_time(Date.new(2026, 5, 27), "14:00").iso8601)
+  end
+
   it "rejects booking the same slot twice" do
     start_at = local_time(Date.new(2026, 5, 25), "10:00")
     Booking.create!(
