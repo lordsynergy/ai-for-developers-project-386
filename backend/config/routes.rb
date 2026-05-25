@@ -21,4 +21,8 @@ Rails.application.routes.draw do
       get "bookings/upcoming", to: "bookings#upcoming"
     end
   end
+
+  root "frontend#index"
+  get "*path", to: "frontend#index",
+      constraints: ->(req) { !req.path.start_with?("/api/") && req.path != "/up" }
 end
