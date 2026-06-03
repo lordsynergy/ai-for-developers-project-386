@@ -69,6 +69,13 @@ export class ApiError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 const tokenKey = 'calendar_booking_admin_token';
 
@@ -98,10 +105,18 @@ async function request<T>(path: string, options: RequestInit & { auth?: boolean 
     }
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (error: unknown) {
+    if (error instanceof DOMException) {
+      throw error;
+    }
+    throw new NetworkError(error instanceof Error ? error.message : undefined);
+  }
 
   if (response.status === 204) {
     return undefined as T;

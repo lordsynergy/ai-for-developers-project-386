@@ -9,6 +9,7 @@ import {
   EventTypeCreateRequest,
   EventTypeUpdateRequest,
   getStoredAdminToken,
+  NetworkError,
   Slot,
 } from './api/client';
 import { dayNames, formatDate, formatDateTime, formatMonthYear, formatTime, formatTimeRange, toDateKey } from './utils/format';
@@ -84,7 +85,7 @@ function toMessage(error: unknown) {
     return localizeApiMessage(error.message);
   }
 
-  if (isNetworkError(error)) {
+  if (error instanceof NetworkError) {
     return 'Не удалось подключиться к API. Проверьте, что backend запущен и адрес API указан верно.';
   }
 
@@ -93,14 +94,6 @@ function toMessage(error: unknown) {
   }
 
   return 'Что-то пошло не так. Попробуйте ещё раз.';
-}
-
-function isNetworkError(error: unknown) {
-  if (!(error instanceof TypeError)) {
-    return false;
-  }
-
-  return /fetch|network|failed to fetch/i.test(error.message);
 }
 
 function isEmail(value: string) {
