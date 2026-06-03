@@ -9,6 +9,7 @@ import {
   EventTypeCreateRequest,
   EventTypeUpdateRequest,
   getStoredAdminToken,
+  NetworkError,
   Slot,
 } from './api/client';
 import { dayNames, formatDate, formatDateTime, formatMonthYear, formatTime, formatTimeRange, toDateKey } from './utils/format';
@@ -82,6 +83,10 @@ function localizeApiMessage(message: string) {
 function toMessage(error: unknown) {
   if (error instanceof ApiError) {
     return localizeApiMessage(error.message);
+  }
+
+  if (error instanceof NetworkError) {
+    return 'Не удалось подключиться к API. Проверьте, что backend запущен и адрес API указан верно.';
   }
 
   if (error instanceof Error) {
