@@ -1,32 +1,30 @@
-name: opencode
+name: OpenCode issue comments
 
 on:
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
 
 jobs:
-  opencode:
+  opencode-issue:
     if: |
+      !github.event.issue.pull_request &&
       github.event.comment.user.login == 'lordsynergy' &&
       (
-        startsWith(github.event.comment.body, '/oc') ||
-        startsWith(github.event.comment.body, '/opencode')
+        contains(github.event.comment.body, '/oc') ||
+        contains(github.event.comment.body, '/opencode')
       )
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-      pull-requests: read
-      issues: read
+      issues: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-      - name: Run opencode
+      - name: Run OpenCode on issue
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
