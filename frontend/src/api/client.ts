@@ -112,7 +112,7 @@ async function request<T>(path: string, options: RequestInit & { auth?: boolean 
       headers,
     });
   } catch (error: unknown) {
-    if (error instanceof DOMException) {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw error;
     }
     throw new NetworkError(error instanceof Error ? error.message : undefined);
