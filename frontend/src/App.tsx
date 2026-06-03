@@ -84,11 +84,23 @@ function toMessage(error: unknown) {
     return localizeApiMessage(error.message);
   }
 
+  if (isNetworkError(error)) {
+    return 'Не удалось подключиться к API. Проверьте, что backend запущен и адрес API указан верно.';
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
 
   return 'Что-то пошло не так. Попробуйте ещё раз.';
+}
+
+function isNetworkError(error: unknown) {
+  if (!(error instanceof TypeError)) {
+    return false;
+  }
+
+  return /fetch|network|failed to fetch/i.test(error.message);
 }
 
 function isEmail(value: string) {
